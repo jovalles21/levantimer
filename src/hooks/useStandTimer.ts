@@ -44,10 +44,10 @@ export function useStandTimer(config: Config): StandTimer {
     // el overlay no sea bloqueante (best-effort: el navegador puede ignorarlo).
     window.focus()
     if (p === 'break') {
-      if (cfg.sound) playBreakStart()
+      if (cfg.sound) playBreakStart(cfg.alarmSound, cfg.volume)
       if (cfg.notifications) notify('¡Levántate y estírate!', `Descanso de ${cfg.breakDuration} min.`)
     } else if (p === 'working') {
-      if (cfg.sound) playBreakEnd()
+      if (cfg.sound) playBreakEnd(cfg.volume)
       if (cfg.notifications) notify('Descanso terminado', `A trabajar durante ${cfg.workInterval} min.`)
     }
   }, [])

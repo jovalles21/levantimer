@@ -1,5 +1,7 @@
 // Sonidos generados con la Web Audio API (sin ficheros externos).
 
+import type { AlarmSound } from '../types'
+
 let ctx: AudioContext | null = null
 
 function getContext(): AudioContext {
@@ -39,27 +41,31 @@ function beep(
   osc.stop(startAt + duration)
 }
 
-/** Alarma notable al empezar el descanso: sirena de tonos alternos. */
-export function playBreakStart(): void {
+/** Alarma al empezar el descanso. `volume` (0 a 1) escala el volumen. */
+export function playBreakStart(kind: AlarmSound = 'siren', volume = 1): void {
   const audio = getContext()
   const now = audio.currentTime
-  // Onda cuadrada + tonos alternos: mucho más penetrante que un beep suave.
-  const pattern = [880, 660, 880, 660, 880, 660]
-  pattern.forEach((freq, i) => {
-    beep(freq, 0.24, now + i * 0.26, 0.35, 'square')
-  })
+  if (kind === 'pitidos') {
+    // Tres beeps agudos y secos.
+    for (let i = 0; i < 3; i++) beep(880, 0.18, now + i * 0.25, 0.35 * volume, 'square')
+  } else if (kind === 'campana') {
+    // Campanadas agudas con cola larga.
+    for (let i = 0; i < 3; i++) beep(1046, 0.6, now + i * 0.45, 0.4 * volume, 'triangle')
+  } else {
+    // Sirena: onda cuadrada + tonos alternos, muy penetrante.
+    const pattern = [880, 660, 880, 660, 880, 660]
+    pattern.forEach((freq, i) => beep(freq, 0.24, now + i * 0.26, 0.4 * volume, 'square'))
+  }
 }
 
-/** Aviso al terminar el descanso: melodía ascendente, clara pero distinta de la sirena. */
-export function playBreakEnd(): void {
+/** Aviso al terminar el descanso: melodía ascendente, clara y distinta de la alarma. */
+export function playBreakEnd(volume = 1): void {
   const audio = getContext()
   const now = audio.currentTime
   // Tres notas ascendentes, repetidas, para que se note que toca sentarse.
   const notes = [523, 659, 784]
   for (let rep = 0; rep < 2; rep++) {
     const base = now + rep * 0.75
-    notes.forEach((freq, i) => {
-      beep(freq, 0.2, base + i * 0.16, 0.3, 'triangle')
-    })
+    notes.forEach((freq, i) => beep(freq, 0.2, base + i * 0.16, 0.35 * volume, 'triangle'))
   }
 }
