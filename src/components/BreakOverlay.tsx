@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { formatTime } from '../lib/format'
 import type { Config } from '../types'
 
@@ -7,12 +6,9 @@ interface Props {
   config: Config
   onSkip: () => void
   onDismiss: () => void
-  onSilence: () => void
 }
 
-export function BreakOverlay({ remainingMs, config, onSkip, onDismiss, onSilence }: Props) {
-  const [silenced, setSilenced] = useState(false)
-
+export function BreakOverlay({ remainingMs, config, onSkip, onDismiss }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-emerald-600 text-center text-white">
       <h1 className="px-6 text-5xl font-extrabold tracking-tight sm:text-7xl">
@@ -28,18 +24,6 @@ export function BreakOverlay({ remainingMs, config, onSkip, onDismiss, onSilence
         >
           Saltar descanso
         </button>
-        {config.sound && (
-          <button
-            onClick={() => {
-              onSilence()
-              setSilenced(true)
-            }}
-            disabled={silenced}
-            className="rounded-xl bg-white/20 px-6 py-3 text-lg font-semibold hover:bg-white/30 disabled:cursor-default disabled:opacity-60 disabled:hover:bg-white/20"
-          >
-            {silenced ? 'Sonido silenciado' : 'Silenciar'}
-          </button>
-        )}
         {!config.blockingOverlay && (
           <button
             onClick={onDismiss}

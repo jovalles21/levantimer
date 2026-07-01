@@ -18,11 +18,17 @@ export function unlockAudio(): void {
   getContext()
 }
 
-function beep(frequency: number, duration: number, startAt: number, volume = 0.2): void {
+function beep(
+  frequency: number,
+  duration: number,
+  startAt: number,
+  volume = 0.2,
+  type: OscillatorType = 'sine',
+): void {
   const audio = getContext()
   const osc = audio.createOscillator()
   const gain = audio.createGain()
-  osc.type = 'sine'
+  osc.type = type
   osc.frequency.value = frequency
   gain.gain.setValueAtTime(0, startAt)
   gain.gain.linearRampToValueAtTime(volume, startAt + 0.01)
@@ -33,19 +39,27 @@ function beep(frequency: number, duration: number, startAt: number, volume = 0.2
   osc.stop(startAt + duration)
 }
 
-/** Alerta insistente al empezar el descanso: varios beeps agudos. */
+/** Alarma notable al empezar el descanso: sirena de tonos alternos. */
 export function playBreakStart(): void {
   const audio = getContext()
   const now = audio.currentTime
-  for (let i = 0; i < 3; i++) {
-    beep(880, 0.18, now + i * 0.25)
-  }
+  // Onda cuadrada + tonos alternos: mucho más penetrante que un beep suave.
+  const pattern = [880, 660, 880, 660, 880, 660]
+  pattern.forEach((freq, i) => {
+    beep(freq, 0.24, now + i * 0.26, 0.35, 'square')
+  })
 }
 
-/** Aviso suave al terminar el descanso. */
+/** Aviso al terminar el descanso: melodía ascendente, clara pero distinta de la sirena. */
 export function playBreakEnd(): void {
   const audio = getContext()
   const now = audio.currentTime
-  beep(523, 0.15, now)
-  beep(659, 0.25, now + 0.18)
+  // Tres notas ascendentes, repetidas, para que se note que toca sentarse.
+  const notes = [523, 659, 784]
+  for (let rep = 0; rep < 2; rep++) {
+    const base = now + rep * 0.75
+    notes.forEach((freq, i) => {
+      beep(freq, 0.2, base + i * 0.16, 0.3, 'triangle')
+    })
+  }
 }
