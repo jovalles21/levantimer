@@ -10,7 +10,7 @@ import { BreakOverlay } from './components/BreakOverlay'
 
 export default function App() {
   const [config, setConfig] = useLocalStorage('levantimer.config', DEFAULT_CONFIG)
-  const { phase, running, remainingMs, start, pause, resume, reset, skipBreak } =
+  const { phase, running, remainingMs, start, pause, resume, reset, skipBreak, silenceBreak } =
     useStandTimer(config)
 
   // Permite ocultar el overlay cuando no es bloqueante.
@@ -68,6 +68,7 @@ export default function App() {
           config={config}
           onSkip={skipBreak}
           onDismiss={() => setOverlayDismissed(true)}
+          onSilence={silenceBreak}
         />
       )}
     </div>

@@ -1,6 +1,5 @@
-import { useEffect } from 'react'
+import { useState } from 'react'
 import { formatTime } from '../lib/format'
-import { playBreakStart } from '../lib/sound'
 import type { Config } from '../types'
 
 interface Props {
@@ -8,15 +7,11 @@ interface Props {
   config: Config
   onSkip: () => void
   onDismiss: () => void
+  onSilence: () => void
 }
 
-export function BreakOverlay({ remainingMs, config, onSkip, onDismiss }: Props) {
-  // Aviso sonoro insistente mientras dura el descanso (cada 10s) si hay sonido.
-  useEffect(() => {
-    if (!config.sound) return
-    const id = setInterval(() => playBreakStart(), 10_000)
-    return () => clearInterval(id)
-  }, [config.sound])
+export function BreakOverlay({ remainingMs, config, onSkip, onDismiss, onSilence }: Props) {
+  const [silenced, setSilenced] = useState(false)
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-emerald-600 text-center text-white">
@@ -33,6 +28,18 @@ export function BreakOverlay({ remainingMs, config, onSkip, onDismiss }: Props) 
         >
           Saltar descanso
         </button>
+        {config.sound && (
+          <button
+            onClick={() => {
+              onSilence()
+              setSilenced(true)
+            }}
+            disabled={silenced}
+            className="rounded-xl bg-white/20 px-6 py-3 text-lg font-semibold hover:bg-white/30 disabled:cursor-default disabled:opacity-60 disabled:hover:bg-white/20"
+          >
+            {silenced ? 'Sonido silenciado' : 'Silenciar'}
+          </button>
+        )}
         {!config.blockingOverlay && (
           <button
             onClick={onDismiss}

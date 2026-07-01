@@ -14,6 +14,7 @@ interface StandTimer {
   resume: () => void
   reset: () => void
   skipBreak: () => void
+  silenceBreak: () => void
 }
 
 /**
@@ -28,6 +29,7 @@ export function useStandTimer(config: Config): StandTimer {
 
   const endTimeRef = useRef<number | null>(null)
   const pausedRemainingRef = useRef<number | null>(null)
+  const breakMutedRef = useRef(false)
   const configRef = useRef(config)
   configRef.current = config
 
@@ -40,11 +42,14 @@ export function useStandTimer(config: Config): StandTimer {
 
   const alertFor = useCallback((p: Phase) => {
     const cfg = configRef.current
+    // Intenta traer la ventana al frente para que el aviso interrumpa aunque
+    // el overlay no sea bloqueante (best-effort: el navegador puede ignorarlo).
+    window.focus()
     if (p === 'break') {
       if (cfg.sound) playBreakStart()
       if (cfg.notifications) notify('¡Levántate y estírate!', `Descanso de ${cfg.breakDuration} min.`)
     } else if (p === 'working') {
-      if (cfg.sound) playBreakEnd()
+      if (cfg.sound && !breakMutedRef.current) playBreakEnd()
       if (cfg.notifications) notify('Descanso terminado', `A trabajar durante ${cfg.workInterval} min.`)
     }
   }, [])
@@ -54,6 +59,8 @@ export function useStandTimer(config: Config): StandTimer {
       const duration = durationFor(p)
       endTimeRef.current = Date.now() + duration
       pausedRemainingRef.current = null
+      // Cada nuevo descanso empieza sin silenciar.
+      if (p === 'break') breakMutedRef.current = false
       setPhase(p)
       setRemainingMs(duration)
       alertFor(p)
@@ -111,5 +118,9 @@ export function useStandTimer(config: Config): StandTimer {
     enterPhase('working')
   }, [enterPhase])
 
-  return { phase, running, remainingMs, start, pause, resume, reset, skipBreak }
+  const silenceBreak = useCallback(() => {
+    breakMutedRef.current = true
+  }, [])
+
+  return { phase, running, remainingMs, start, pause, resume, reset, skipBreak, silenceBreak }
 }
