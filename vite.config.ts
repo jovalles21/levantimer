@@ -10,6 +10,10 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        // Añade el handler de click de notificación al service worker.
+        importScripts: ['notif-sw.js'],
+      },
       manifest: {
         name: 'Levantimer',
         short_name: 'Levantimer',

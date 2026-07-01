@@ -3,6 +3,7 @@ import { DEFAULT_CONFIG } from './types'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { useStandTimer } from './hooks/useStandTimer'
 import { unlockAudio } from './lib/sound'
+import { requestPermission } from './lib/notifications'
 import { formatTime } from './lib/format'
 import { TimerDisplay } from './components/TimerDisplay'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -33,6 +34,9 @@ export default function App() {
 
   const handleStart = () => {
     unlockAudio() // desbloquea el audio en el gesto del usuario
+    // Pide permiso de notificaciones aquí (gesto del usuario) por si está
+    // activado en la config pero aún no se concedió.
+    if (config.notifications) void requestPermission()
     start()
   }
 
