@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Config, Phase } from '../types'
-import { playBreakEnd, playBreakStart } from '../lib/sound'
+import { playBreakEnd, playBreakStart, playBreakWarning } from '../lib/sound'
 import { notify } from '../lib/notifications'
 
 const MINUTE = 60_000
+// Segundos antes de terminar el descanso en los que suena el aviso para prepararse.
+const BREAK_WARNING_MS = 30_000
 
 interface StandTimer {
   phase: Phase
@@ -28,6 +30,10 @@ export function useStandTimer(config: Config): StandTimer {
 
   const endTimeRef = useRef<number | null>(null)
   const pausedRemainingRef = useRef<number | null>(null)
+  // Fase actual accesible dentro del tick (el closure no se re-crea al cambiar de fase).
+  const phaseRef = useRef<Phase>('idle')
+  // Evita repetir el aviso de "quedan 30s" varias veces durante el mismo descanso.
+  const breakWarnedRef = useRef(false)
   const configRef = useRef(config)
   configRef.current = config
 
@@ -57,6 +63,8 @@ export function useStandTimer(config: Config): StandTimer {
       const duration = durationFor(p)
       endTimeRef.current = Date.now() + duration
       pausedRemainingRef.current = null
+      breakWarnedRef.current = false
+      phaseRef.current = p
       setPhase(p)
       setRemainingMs(duration)
       alertFor(p)
@@ -77,6 +85,15 @@ export function useStandTimer(config: Config): StandTimer {
           return next
         })
       } else {
+        // Aviso previo para volver a trabajar cuando quedan pocos segundos de descanso.
+        if (
+          phaseRef.current === 'break' &&
+          !breakWarnedRef.current &&
+          remaining <= BREAK_WARNING_MS
+        ) {
+          breakWarnedRef.current = true
+          if (configRef.current.sound) playBreakWarning(configRef.current.volume)
+        }
         setRemainingMs(remaining)
       }
     }, 1000)
@@ -105,6 +122,7 @@ export function useStandTimer(config: Config): StandTimer {
   const reset = useCallback(() => {
     endTimeRef.current = null
     pausedRemainingRef.current = null
+    phaseRef.current = 'idle'
     setRunning(false)
     setPhase('idle')
     setRemainingMs(0)

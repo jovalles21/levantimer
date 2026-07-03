@@ -62,6 +62,14 @@ export function playBreakStart(kind: AlarmSound = 'siren', volume = 1): void {
   }
 }
 
+/** Aviso previo: faltan pocos segundos para volver a trabajar. Dos toques suaves. */
+export function playBreakWarning(volume = 1): void {
+  const audio = getContext()
+  const now = audio.currentTime + 0.06
+  beep(659, 0.15, now, 0.5 * volume, 'triangle')
+  beep(659, 0.15, now + 0.25, 0.5 * volume, 'triangle')
+}
+
 /** Aviso al terminar el descanso: melodía ascendente, clara y distinta de la alarma. */
 export function playBreakEnd(volume = 1): void {
   const audio = getContext()
