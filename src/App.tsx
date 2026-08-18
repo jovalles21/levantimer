@@ -5,7 +5,7 @@ import { useLocalStorage } from './hooks/useLocalStorage'
 import { useStandTimer } from './hooks/useStandTimer'
 import { dateKey, useWorkLog } from './hooks/useWorkLog'
 import { useIdleDetector } from './hooks/useIdleDetector'
-import { requestIdlePermission } from './lib/idle'
+import { isTauri, requestIdlePermission } from './lib/idle'
 import { playBreakEnd, unlockAudio } from './lib/sound'
 import { notify, requestPermission } from './lib/notifications'
 import { formatDuration, formatTime } from './lib/format'
@@ -15,9 +15,6 @@ import { WorkLogPanel } from './components/WorkLogPanel'
 import { BreakOverlay } from './components/BreakOverlay'
 
 const GOAL_NOTIFIED_KEY = 'levantimer.goalNotified'
-
-// True cuando corre dentro de la app de escritorio (Tauri) y no en el navegador.
-const isTauri = '__TAURI_INTERNALS__' in window
 
 export default function App() {
   const [config, setConfig] = useLocalStorage('levantimer.config', DEFAULT_CONFIG)

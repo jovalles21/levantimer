@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { idleDetectionSupported } from '../lib/idle'
+import { invoke } from '@tauri-apps/api/core'
+import { idleDetectionSupported, isTauri } from '../lib/idle'
+
+// Cada cuánto se consulta la inactividad nativa en la app de escritorio.
+const NATIVE_POLL_MS = 5000
 
 /**
  * Observa la inactividad del sistema mientras `active` sea true y avisa una
@@ -16,11 +20,26 @@ export function useIdleDetector(
 
   useEffect(() => {
     if (!active || !idleDetectionSupported()) return
-    const controller = new AbortController()
-    // La API exige un umbral mínimo de 60s.
     const thresholdMs = Math.max(60_000, thresholdMin * 60_000)
     let fired = false
 
+    // App de escritorio: pregunta al sistema cuánto llevas sin teclado/ratón.
+    if (isTauri) {
+      const id = setInterval(() => {
+        void invoke<number>('get_idle_ms')
+          .then((idleMs) => {
+            if (!fired && idleMs >= thresholdMs) {
+              fired = true
+              onIdleRef.current(Date.now() - idleMs)
+            }
+          })
+          .catch(() => {})
+      }, NATIVE_POLL_MS)
+      return () => clearInterval(id)
+    }
+
+    // Navegador: Idle Detection API (exige umbral mínimo de 60s).
+    const controller = new AbortController()
     void (async () => {
       try {
         const detector = new (window as any).IdleDetector()

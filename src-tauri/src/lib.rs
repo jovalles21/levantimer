@@ -4,6 +4,15 @@ use tauri::{
   Manager,
 };
 
+/// Milisegundos desde el último evento de teclado/ratón a nivel de sistema.
+/// El frontend lo consulta para la auto-pausa por inactividad.
+#[tauri::command]
+fn get_idle_ms() -> u64 {
+  user_idle::UserIdle::get_time()
+    .map(|t| t.as_seconds() * 1000)
+    .unwrap_or(0)
+}
+
 /// Actualiza el texto junto al icono en la barra de menú (p. ej. "⏱ 29:45").
 /// Lo llama el frontend en cada tick del timer; vacío lo oculta.
 #[tauri::command]
@@ -16,7 +25,7 @@ fn set_tray_title(app: tauri::AppHandle, title: String) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![set_tray_title])
+    .invoke_handler(tauri::generate_handler![set_tray_title, get_idle_ms])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

@@ -87,7 +87,7 @@ export function SettingsPanel({ config, onChange, disabled }: Props) {
         hint={
           idleDetectionSupported()
             ? 'Pausa el timer y descuenta el tiempo si dejas de usar el PC.'
-            : 'No soportada en este navegador (solo Chrome/Edge).'
+            : 'En navegador solo funciona en Chrome/Edge; usa la app de escritorio.'
         }
         checked={config.idleDetection}
         disabled={!idleDetectionSupported()}
