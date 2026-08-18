@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import { DEFAULT_CONFIG } from './types'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { useStandTimer } from './hooks/useStandTimer'
@@ -14,6 +15,9 @@ import { WorkLogPanel } from './components/WorkLogPanel'
 import { BreakOverlay } from './components/BreakOverlay'
 
 const GOAL_NOTIFIED_KEY = 'levantimer.goalNotified'
+
+// True cuando corre dentro de la app de escritorio (Tauri) y no en el navegador.
+const isTauri = '__TAURI_INTERNALS__' in window
 
 export default function App() {
   const [config, setConfig] = useLocalStorage('levantimer.config', DEFAULT_CONFIG)
@@ -41,6 +45,15 @@ export default function App() {
       const prefix = phase === 'break' ? '☕' : '⏱'
       document.title = `${prefix} ${formatTime(remainingMs)} · Levantimer`
     }
+  }, [phase, remainingMs])
+
+  // En la app de escritorio, muestra la cuenta atrás junto al icono de la
+  // barra de menú (estilo Focus To-Do).
+  useEffect(() => {
+    if (!isTauri) return
+    const title =
+      phase === 'idle' ? '' : `${phase === 'break' ? '☕' : '⏱'} ${formatTime(remainingMs)}`
+    void invoke('set_tray_title', { title }).catch(() => {})
   }, [phase, remainingMs])
 
   // Con la PWA instalada, muestra los minutos restantes como badge en el
