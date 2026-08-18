@@ -23,6 +23,8 @@ export default function App() {
 
   // Permite ocultar el overlay cuando no es bloqueante.
   const [overlayDismissed, setOverlayDismissed] = useState(false)
+  // Pestaña activa de la parte inferior.
+  const [tab, setTab] = useState<'stats' | 'settings'>('stats')
   // Ms descontados en la última auto-pausa por inactividad (aviso al volver).
   const [idleNotice, setIdleNotice] = useState<number | null>(null)
 
@@ -40,6 +42,17 @@ export default function App() {
       document.title = `${prefix} ${formatTime(remainingMs)} · Levantimer`
     }
   }, [phase, remainingMs])
+
+  // Con la PWA instalada, muestra los minutos restantes como badge en el
+  // icono del Dock (la Badge API solo acepta números).
+  useEffect(() => {
+    if (!('setAppBadge' in navigator)) return
+    if (phase === 'idle' || !running) {
+      void (navigator as any).clearAppBadge?.()
+    } else {
+      void (navigator as any).setAppBadge(Math.max(1, Math.ceil(remainingMs / 60_000)))
+    }
+  }, [phase, running, remainingMs])
 
   // Inactividad detectada: pausa el timer y cierra la sesión retroactivamente
   // en el último momento de actividad. No se reanuda solo: eso lo haces tú.
@@ -135,9 +148,22 @@ export default function App() {
           </p>
         )}
 
-        <WorkLogPanel todayMs={todayMs} days={days} goalHours={config.dailyGoalHours} />
+        <div className="w-full">
+          <div className="mb-4 flex rounded-xl bg-slate-800 p-1">
+            <TabButton active={tab === 'stats'} onClick={() => setTab('stats')}>
+              Horas
+            </TabButton>
+            <TabButton active={tab === 'settings'} onClick={() => setTab('settings')}>
+              Configuración
+            </TabButton>
+          </div>
 
-        <SettingsPanel config={config} onChange={setConfig} disabled={phase !== 'idle'} />
+          {tab === 'stats' ? (
+            <WorkLogPanel todayMs={todayMs} days={days} goalHours={config.dailyGoalHours} />
+          ) : (
+            <SettingsPanel config={config} onChange={setConfig} disabled={phase !== 'idle'} />
+          )}
+        </div>
       </main>
 
       {showOverlay && (
@@ -149,6 +175,27 @@ export default function App() {
         />
       )}
     </div>
+  )
+}
+
+function TabButton({
+  active,
+  children,
+  onClick,
+}: {
+  active: boolean
+  children: React.ReactNode
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold ${
+        active ? 'bg-slate-600 text-slate-50' : 'text-slate-400 hover:text-slate-200'
+      }`}
+    >
+      {children}
+    </button>
   )
 }
 
