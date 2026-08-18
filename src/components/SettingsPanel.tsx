@@ -1,5 +1,6 @@
 import type { AlarmSound, Config } from '../types'
 import { notificationsSupported, requestPermission } from '../lib/notifications'
+import { idleDetectionSupported, requestIdlePermission } from '../lib/idle'
 import { playBreakStart, unlockAudio } from '../lib/sound'
 
 interface Props {
@@ -16,6 +17,15 @@ const ALARM_OPTIONS: { value: AlarmSound; label: string }[] = [
 
 export function SettingsPanel({ config, onChange, disabled }: Props) {
   const update = (patch: Partial<Config>) => onChange({ ...config, ...patch })
+
+  const handleIdleToggle = async (checked: boolean) => {
+    if (checked) {
+      const granted = await requestIdlePermission()
+      update({ idleDetection: granted })
+    } else {
+      update({ idleDetection: false })
+    }
+  }
 
   const handleNotificationsToggle = async (checked: boolean) => {
     if (checked) {
@@ -52,6 +62,47 @@ export function SettingsPanel({ config, onChange, disabled }: Props) {
           value={config.breakDuration}
           disabled={disabled}
           onChange={(e) => update({ breakDuration: Math.max(1, Number(e.target.value)) })}
+          className="w-24 rounded-lg bg-slate-900 px-3 py-2 text-right text-slate-50 disabled:opacity-50"
+        />
+      </label>
+
+      <label className="flex items-center justify-between gap-4 text-slate-200">
+        <span>Meta diaria (h)</span>
+        <input
+          type="number"
+          min={1}
+          max={24}
+          step={1}
+          value={config.dailyGoalHours}
+          disabled={disabled}
+          onChange={(e) =>
+            update({ dailyGoalHours: Math.min(24, Math.max(1, Number(e.target.value))) })
+          }
+          className="w-24 rounded-lg bg-slate-900 px-3 py-2 text-right text-slate-50 disabled:opacity-50"
+        />
+      </label>
+
+      <ToggleRow
+        label="Auto-pausa por inactividad"
+        hint={
+          idleDetectionSupported()
+            ? 'Pausa el timer y descuenta el tiempo si dejas de usar el PC.'
+            : 'No soportada en este navegador (solo Chrome/Edge).'
+        }
+        checked={config.idleDetection}
+        disabled={!idleDetectionSupported()}
+        onChange={handleIdleToggle}
+      />
+
+      <label className="flex items-center justify-between gap-4 text-slate-200">
+        <span>Inactividad tras (min)</span>
+        <input
+          type="number"
+          min={1}
+          step={1}
+          value={config.idleThreshold}
+          disabled={disabled || !config.idleDetection}
+          onChange={(e) => update({ idleThreshold: Math.max(1, Number(e.target.value)) })}
           className="w-24 rounded-lg bg-slate-900 px-3 py-2 text-right text-slate-50 disabled:opacity-50"
         />
       </label>

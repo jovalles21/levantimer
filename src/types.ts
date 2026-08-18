@@ -18,6 +18,18 @@ export interface Config {
   volume: number
   /** Sonido de la alarma al empezar el descanso. */
   alarmSound: AlarmSound
+  /** Horas de trabajo objetivo por día. */
+  dailyGoalHours: number
+  /** Si el timer se pausa solo al detectar inactividad (Idle Detection API). */
+  idleDetection: boolean
+  /** Minutos sin actividad antes de auto-pausar. */
+  idleThreshold: number
+}
+
+/** Tramo de jornada registrado (incluye trabajo y descansos del timer). */
+export interface WorkSession {
+  start: number
+  end: number
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -28,4 +40,7 @@ export const DEFAULT_CONFIG: Config = {
   sound: true,
   volume: 0.8,
   alarmSound: 'siren',
+  dailyGoalHours: 8,
+  idleDetection: true,
+  idleThreshold: 5,
 }

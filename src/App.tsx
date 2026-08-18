@@ -1,21 +1,30 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { DEFAULT_CONFIG } from './types'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { useStandTimer } from './hooks/useStandTimer'
-import { unlockAudio } from './lib/sound'
-import { requestPermission } from './lib/notifications'
-import { formatTime } from './lib/format'
+import { dateKey, useWorkLog } from './hooks/useWorkLog'
+import { useIdleDetector } from './hooks/useIdleDetector'
+import { requestIdlePermission } from './lib/idle'
+import { playBreakEnd, unlockAudio } from './lib/sound'
+import { notify, requestPermission } from './lib/notifications'
+import { formatDuration, formatTime } from './lib/format'
 import { TimerDisplay } from './components/TimerDisplay'
 import { SettingsPanel } from './components/SettingsPanel'
+import { WorkLogPanel } from './components/WorkLogPanel'
 import { BreakOverlay } from './components/BreakOverlay'
+
+const GOAL_NOTIFIED_KEY = 'levantimer.goalNotified'
 
 export default function App() {
   const [config, setConfig] = useLocalStorage('levantimer.config', DEFAULT_CONFIG)
   const { phase, running, remainingMs, start, pause, resume, reset, skipBreak } =
     useStandTimer(config)
+  const { todayMs, days, startSession, endSession } = useWorkLog()
 
   // Permite ocultar el overlay cuando no es bloqueante.
   const [overlayDismissed, setOverlayDismissed] = useState(false)
+  // Ms descontados en la última auto-pausa por inactividad (aviso al volver).
+  const [idleNotice, setIdleNotice] = useState<number | null>(null)
 
   // Al volver al descanso, el overlay reaparece.
   useEffect(() => {
@@ -32,12 +41,68 @@ export default function App() {
     }
   }, [phase, remainingMs])
 
+  // Inactividad detectada: pausa el timer y cierra la sesión retroactivamente
+  // en el último momento de actividad. No se reanuda solo: eso lo haces tú.
+  const handleIdle = useCallback(
+    (lastActiveAt: number) => {
+      pause()
+      endSession(lastActiveAt)
+      setIdleNotice(Date.now() - lastActiveAt)
+    },
+    [pause, endSession],
+  )
+
+  // Solo vigila durante la fase de trabajo: en el descanso levantarse es el plan.
+  useIdleDetector(
+    running && phase === 'working' && config.idleDetection,
+    config.idleThreshold,
+    handleIdle,
+  )
+
+  // Aviso único al alcanzar la meta diaria.
+  const goalMs = config.dailyGoalHours * 3_600_000
+  useEffect(() => {
+    if (todayMs < goalMs) return
+    const today = dateKey(Date.now())
+    if (localStorage.getItem(GOAL_NOTIFIED_KEY) === today) return
+    localStorage.setItem(GOAL_NOTIFIED_KEY, today)
+    if (config.sound) playBreakEnd(config.volume)
+    if (config.notifications) {
+      notify('Meta diaria alcanzada', `Ya llevas ${config.dailyGoalHours} h de trabajo hoy.`)
+    }
+  }, [todayMs, goalMs, config])
+
   const handleStart = () => {
     unlockAudio() // desbloquea el audio en el gesto del usuario
     // Pide permiso de notificaciones aquí (gesto del usuario) por si está
     // activado en la config pero aún no se concedió.
     if (config.notifications) void requestPermission()
+    // Igual con la detección de inactividad: si el permiso se deniega, se
+    // apaga la opción para no aparentar una protección que no existe.
+    if (config.idleDetection) {
+      void requestIdlePermission().then((granted) => {
+        if (!granted) setConfig((c) => ({ ...c, idleDetection: false }))
+      })
+    }
+    setIdleNotice(null)
     start()
+    startSession()
+  }
+
+  const handlePause = () => {
+    pause()
+    endSession()
+  }
+
+  const handleResume = () => {
+    setIdleNotice(null)
+    resume()
+    startSession()
+  }
+
+  const handleReset = () => {
+    reset()
+    endSession()
   }
 
   const showOverlay = phase === 'break' && !overlayDismissed
@@ -56,12 +121,21 @@ export default function App() {
           {phase === 'idle' ? (
             <PrimaryButton onClick={handleStart}>Iniciar</PrimaryButton>
           ) : running ? (
-            <SecondaryButton onClick={pause}>Pausar</SecondaryButton>
+            <SecondaryButton onClick={handlePause}>Pausar</SecondaryButton>
           ) : (
-            <PrimaryButton onClick={resume}>Reanudar</PrimaryButton>
+            <PrimaryButton onClick={handleResume}>Reanudar</PrimaryButton>
           )}
-          {phase !== 'idle' && <SecondaryButton onClick={reset}>Reiniciar</SecondaryButton>}
+          {phase !== 'idle' && <SecondaryButton onClick={handleReset}>Reiniciar</SecondaryButton>}
         </div>
+
+        {idleNotice !== null && (
+          <p className="rounded-lg bg-amber-500/15 px-4 py-2 text-sm text-amber-300">
+            Pausado por inactividad
+            {idleNotice >= 60_000 ? `: se descontaron ~${formatDuration(idleNotice)}` : ''}.
+          </p>
+        )}
+
+        <WorkLogPanel todayMs={todayMs} days={days} goalHours={config.dailyGoalHours} />
 
         <SettingsPanel config={config} onChange={setConfig} disabled={phase !== 'idle'} />
       </main>
