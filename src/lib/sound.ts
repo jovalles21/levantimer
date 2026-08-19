@@ -5,11 +5,13 @@ import type { AlarmSound } from '../types'
 let ctx: AudioContext | null = null
 
 function getContext(): AudioContext {
-  if (!ctx) {
+  if (!ctx || ctx.state === 'closed') {
     ctx = new AudioContext()
   }
   // Algunos navegadores suspenden el contexto hasta una interacción del usuario.
-  if (ctx.state === 'suspended') {
+  // WKWebView (app de escritorio) además lo deja en 'interrupted' al ocultar la
+  // ventana y no lo reanuda solo, así que forzamos resume si no está corriendo.
+  if (ctx.state !== 'running') {
     void ctx.resume()
   }
   return ctx

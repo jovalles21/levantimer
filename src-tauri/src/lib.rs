@@ -13,6 +13,17 @@ fn get_idle_ms() -> u64 {
     .unwrap_or(0)
 }
 
+/// Muestra y enfoca la ventana principal. El frontend lo llama al empezar el
+/// descanso: despierta el webview (WKWebView suspende el audio con la ventana
+/// oculta) y deja el overlay a la vista.
+#[tauri::command]
+fn show_main_window(app: tauri::AppHandle) {
+  if let Some(window) = app.get_webview_window("main") {
+    let _ = window.show();
+    let _ = window.set_focus();
+  }
+}
+
 /// Actualiza el texto junto al icono en la barra de menú (p. ej. "⏱ 29:45").
 /// Lo llama el frontend en cada tick del timer; vacío lo oculta.
 #[tauri::command]
@@ -25,7 +36,7 @@ fn set_tray_title(app: tauri::AppHandle, title: String) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![set_tray_title, get_idle_ms])
+    .invoke_handler(tauri::generate_handler![set_tray_title, get_idle_ms, show_main_window])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
