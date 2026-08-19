@@ -86,7 +86,7 @@ export function SettingsPanel({ config, onChange, disabled }: Props) {
         label="Auto-pausa por inactividad"
         hint={
           idleDetectionSupported()
-            ? 'Pausa el timer y descuenta el tiempo si dejas de usar el PC.'
+            ? 'Pausa el timer si dejas de usar el PC. No descuenta tiempo ya contado.'
             : 'En navegador solo funciona en Chrome/Edge; usa la app de escritorio.'
         }
         checked={config.idleDetection}

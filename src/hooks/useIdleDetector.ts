@@ -7,13 +7,13 @@ const NATIVE_POLL_MS = 5000
 
 /**
  * Observa la inactividad del sistema mientras `active` sea true y avisa una
- * sola vez con el último instante de actividad estimado. No reanuda nada:
- * al desactivarse `active` (p. ej. porque el timer se pausó) deja de observar.
+ * sola vez al superarse el umbral. No reanuda nada: al desactivarse `active`
+ * (p. ej. porque el timer se pausó) deja de observar.
  */
 export function useIdleDetector(
   active: boolean,
   thresholdMin: number,
-  onIdle: (lastActiveAt: number) => void,
+  onIdle: () => void,
 ) {
   const onIdleRef = useRef(onIdle)
   onIdleRef.current = onIdle
@@ -30,7 +30,7 @@ export function useIdleDetector(
           .then((idleMs) => {
             if (!fired && idleMs >= thresholdMs) {
               fired = true
-              onIdleRef.current(Date.now() - idleMs)
+              onIdleRef.current()
             }
           })
           .catch(() => {})
@@ -45,15 +45,9 @@ export function useIdleDetector(
         const detector = new (window as any).IdleDetector()
         detector.addEventListener('change', () => {
           if (fired) return
-          if (detector.screenState === 'locked') {
-            // Bloqueo de pantalla: la actividad terminó ahora mismo.
+          if (detector.screenState === 'locked' || detector.userState === 'idle') {
             fired = true
-            onIdleRef.current(Date.now())
-          } else if (detector.userState === 'idle') {
-            // Sin teclado/ratón durante todo el umbral: la última actividad
-            // fue hace ~thresholdMs.
-            fired = true
-            onIdleRef.current(Date.now() - thresholdMs)
+            onIdleRef.current()
           }
         })
         await detector.start({ threshold: thresholdMs, signal: controller.signal })

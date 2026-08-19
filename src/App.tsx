@@ -8,7 +8,7 @@ import { useIdleDetector } from './hooks/useIdleDetector'
 import { isTauri, requestIdlePermission } from './lib/idle'
 import { playBreakEnd, unlockAudio } from './lib/sound'
 import { notify, requestPermission } from './lib/notifications'
-import { formatDuration, formatTime } from './lib/format'
+import { formatTime } from './lib/format'
 import { TimerDisplay } from './components/TimerDisplay'
 import { SettingsPanel } from './components/SettingsPanel'
 import { WorkLogPanel } from './components/WorkLogPanel'
@@ -26,8 +26,8 @@ export default function App() {
   const [overlayDismissed, setOverlayDismissed] = useState(false)
   // Pestaña activa de la parte inferior.
   const [tab, setTab] = useState<'stats' | 'settings'>('stats')
-  // Ms descontados en la última auto-pausa por inactividad (aviso al volver).
-  const [idleNotice, setIdleNotice] = useState<number | null>(null)
+  // Aviso tras una auto-pausa por inactividad.
+  const [idleNotice, setIdleNotice] = useState(false)
 
   // Al volver al descanso, el overlay reaparece.
   useEffect(() => {
@@ -72,16 +72,14 @@ export default function App() {
     }
   }, [phase, running, remainingMs])
 
-  // Inactividad detectada: pausa el timer y cierra la sesión retroactivamente
-  // en el último momento de actividad. No se reanuda solo: eso lo haces tú.
-  const handleIdle = useCallback(
-    (lastActiveAt: number) => {
-      pause()
-      endSession(lastActiveAt)
-      setIdleNotice(Date.now() - lastActiveAt)
-    },
-    [pause, endSession],
-  )
+  // Inactividad detectada: pausa el timer y cierra la sesión en este momento,
+  // sin descontar el umbral (ese rato puede ser una reunión, no una ausencia).
+  // No se reanuda solo: eso lo haces tú.
+  const handleIdle = useCallback(() => {
+    pause()
+    endSession()
+    setIdleNotice(true)
+  }, [pause, endSession])
 
   // Solo vigila durante la fase de trabajo: en el descanso levantarse es el plan.
   useIdleDetector(
@@ -115,7 +113,7 @@ export default function App() {
         if (!granted) setConfig((c) => ({ ...c, idleDetection: false }))
       })
     }
-    setIdleNotice(null)
+    setIdleNotice(false)
     start()
     startSession()
   }
@@ -126,7 +124,7 @@ export default function App() {
   }
 
   const handleResume = () => {
-    setIdleNotice(null)
+    setIdleNotice(false)
     resume()
     startSession()
   }
@@ -159,10 +157,9 @@ export default function App() {
           {phase !== 'idle' && <SecondaryButton onClick={handleReset}>Reiniciar</SecondaryButton>}
         </div>
 
-        {idleNotice !== null && (
+        {idleNotice && (
           <p className="rounded-lg bg-amber-500/15 px-4 py-2 text-sm text-amber-300">
-            Pausado por inactividad
-            {idleNotice >= 60_000 ? `: se descontaron ~${formatDuration(idleNotice)}` : ''}.
+            Pausado por inactividad. No se descontó tiempo.
           </p>
         )}
 

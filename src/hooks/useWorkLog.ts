@@ -89,14 +89,14 @@ export function useWorkLog() {
     setData((d) => (d.active ? d : { ...d, active: { start: now, lastSeen: now } }))
   }, [])
 
-  /** Cierra la sesión activa. `end` permite cerrar retroactivamente (idle). */
-  const endSession = useCallback((end?: number) => {
+  /** Cierra la sesión activa en este momento. */
+  const endSession = useCallback(() => {
     setData((d) => {
       if (!d.active) return d
       const days = { ...d.days }
       pushSession(days, {
         start: d.active.start,
-        end: Math.max(d.active.start, end ?? Date.now()),
+        end: Math.max(d.active.start, Date.now()),
       })
       return { days, active: null }
     })
