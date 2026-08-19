@@ -29,13 +29,17 @@ export default function App() {
   // Ms descontados en la última auto-pausa por inactividad (aviso al volver).
   const [idleNotice, setIdleNotice] = useState<number | null>(null)
 
-  // Al volver al descanso, el overlay reaparece. En la app de escritorio además
-  // se muestra la ventana: si está oculta, WKWebView suspende el audio y la
-  // alarma no sonaría.
+  // Al volver al descanso, el overlay reaparece.
   useEffect(() => {
-    if (phase !== 'break') return
-    setOverlayDismissed(false)
-    if (isTauri) void invoke('show_main_window').catch(() => {})
+    if (phase === 'break') setOverlayDismissed(false)
+  }, [phase])
+
+  // App de escritorio: durante el descanso la ventana pasa al frente y se queda
+  // encima de todo; al terminar vuelve a la normalidad. También despierta el
+  // webview para que suene la alarma con la ventana oculta.
+  useEffect(() => {
+    if (!isTauri) return
+    void invoke('set_alert_mode', { active: phase === 'break' }).catch(() => {})
   }, [phase])
 
   // Muestra la cuenta atrás también en el título de la pestaña.

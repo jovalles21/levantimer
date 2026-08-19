@@ -13,14 +13,22 @@ fn get_idle_ms() -> u64 {
     .unwrap_or(0)
 }
 
-/// Muestra y enfoca la ventana principal. El frontend lo llama al empezar el
-/// descanso: despierta el webview (WKWebView suspende el audio con la ventana
-/// oculta) y deja el overlay a la vista.
+/// Modo alerta durante el descanso: muestra la ventana en primer plano, encima
+/// del resto de apps y en cualquier escritorio. Además despierta el webview
+/// (WKWebView suspende el audio con la ventana oculta). Al desactivarlo, la
+/// ventana vuelve a comportarse normal.
 #[tauri::command]
-fn show_main_window(app: tauri::AppHandle) {
+fn set_alert_mode(app: tauri::AppHandle, active: bool) {
   if let Some(window) = app.get_webview_window("main") {
-    let _ = window.show();
-    let _ = window.set_focus();
+    if active {
+      let _ = window.show();
+      let _ = window.set_visible_on_all_workspaces(true);
+      let _ = window.set_always_on_top(true);
+      let _ = window.set_focus();
+    } else {
+      let _ = window.set_always_on_top(false);
+      let _ = window.set_visible_on_all_workspaces(false);
+    }
   }
 }
 
@@ -36,7 +44,7 @@ fn set_tray_title(app: tauri::AppHandle, title: String) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![set_tray_title, get_idle_ms, show_main_window])
+    .invoke_handler(tauri::generate_handler![set_tray_title, get_idle_ms, set_alert_mode])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
