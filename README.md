@@ -11,6 +11,11 @@ muestra un overlay a pantalla completa durante el descanso.
 - Intervalo de trabajo y duración del descanso configurables (en minutos).
 - Alerta triple: sonido, notificación del sistema y overlay a pantalla completa.
 - Overlay del descanso **bloqueante o no bloqueante** (a elección del usuario).
+- **Auto-pausa por inactividad**: el timer se detiene solo cuando dejas de usar
+  el ordenador y se reanuda solo en cuanto vuelves. Opcionalmente puede arrancar
+  la jornada sin que pulses nada.
+- Registro de horas trabajadas por día, con meta diaria configurable: funciona
+  como un contador de tiempo real frente al ordenador.
 - Toda la configuración se guarda en `localStorage`.
 - PWA: instalable y funciona offline.
 

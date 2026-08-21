@@ -86,7 +86,7 @@ export function SettingsPanel({ config, onChange, disabled }: Props) {
         label="Auto-pausa por inactividad"
         hint={
           idleDetectionSupported()
-            ? 'Pausa el timer si dejas de usar el PC. No descuenta tiempo ya contado.'
+            ? 'Pausa el timer si dejas de usar el PC y lo reanuda solo al volver.'
             : 'En navegador solo funciona en Chrome/Edge; usa la app de escritorio.'
         }
         checked={config.idleDetection}
@@ -106,6 +106,22 @@ export function SettingsPanel({ config, onChange, disabled }: Props) {
           className="w-24 rounded-lg bg-slate-900 px-3 py-2 text-right text-slate-50 disabled:opacity-50"
         />
       </label>
+
+      <ToggleRow
+        label="Descontar el tiempo de inactividad"
+        hint="El rato ausente no cuenta como trabajado. Apágalo si sueles leer en pantalla o estar en reuniones."
+        checked={config.discountIdleTime}
+        disabled={!config.idleDetection}
+        onChange={(checked) => update({ discountIdleTime: checked })}
+      />
+
+      <ToggleRow
+        label="Iniciar la jornada sola"
+        hint="Arranca el timer al detectar actividad tras un rato parado, sin pulsar Iniciar."
+        checked={config.autoStart}
+        disabled={!config.idleDetection}
+        onChange={(checked) => update({ autoStart: checked })}
+      />
 
       <ToggleRow
         label="Overlay bloqueante"

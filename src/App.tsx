@@ -4,7 +4,7 @@ import { DEFAULT_CONFIG } from './types'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { useStandTimer } from './hooks/useStandTimer'
 import { dateKey, useWorkLog } from './hooks/useWorkLog'
-import { useIdleDetector } from './hooks/useIdleDetector'
+import { useActivityMonitor } from './hooks/useActivityMonitor'
 import { isTauri, requestIdlePermission } from './lib/idle'
 import { playBreakEnd, unlockAudio } from './lib/sound'
 import { notify, requestPermission } from './lib/notifications'
@@ -18,7 +18,7 @@ const GOAL_NOTIFIED_KEY = 'levantimer.goalNotified'
 
 export default function App() {
   const [config, setConfig] = useLocalStorage('levantimer.config', DEFAULT_CONFIG)
-  const { phase, running, remainingMs, start, pause, resume, reset, skipBreak } =
+  const { phase, running, remainingMs, start, pause, resume, reset, skipBreak, restartWork } =
     useStandTimer(config)
   const { todayMs, days, startSession, endSession } = useWorkLog()
 
@@ -26,8 +26,11 @@ export default function App() {
   const [overlayDismissed, setOverlayDismissed] = useState(false)
   // Pestaña activa de la parte inferior.
   const [tab, setTab] = useState<'stats' | 'settings'>('stats')
-  // Aviso tras una auto-pausa por inactividad.
-  const [idleNotice, setIdleNotice] = useState(false)
+  // True mientras el timer está pausado por inactividad (y no por ti).
+  const [autoPaused, setAutoPaused] = useState(false)
+  // Se incrementa en cada acción manual para que el monitor olvide la
+  // inactividad que observó antes (si no, Reiniciar arrancaría solo enseguida).
+  const [epoch, setEpoch] = useState(0)
 
   // Al volver al descanso, el overlay reaparece.
   useEffect(() => {
@@ -72,20 +75,41 @@ export default function App() {
     }
   }, [phase, running, remainingMs])
 
-  // Inactividad detectada: pausa el timer y cierra la sesión en este momento,
-  // sin descontar el umbral (ese rato puede ser una reunión, no una ausencia).
-  // No se reanuda solo: eso lo haces tú.
-  const handleIdle = useCallback(() => {
-    pause()
-    endSession()
-    setIdleNotice(true)
-  }, [pause, endSession])
+  // Inactividad detectada: pausa el timer y cierra la sesión. Según la config,
+  // el tramo ausente se descuenta o se da por trabajado (puede ser una reunión).
+  const handleIdle = useCallback(
+    (idleStartedAt: number) => {
+      if (!running) return
+      pause()
+      endSession(config.discountIdleTime ? idleStartedAt : undefined)
+      setAutoPaused(true)
+    },
+    [running, pause, endSession, config.discountIdleTime],
+  )
 
-  // Solo vigila durante la fase de trabajo: en el descanso levantarse es el plan.
-  useIdleDetector(
-    running && phase === 'working' && config.idleDetection,
+  // Vuelve la actividad: reanuda si la pausa fue automática, o arranca la
+  // jornada si así está configurado. Una pausa manual tuya se respeta.
+  const handleActive = useCallback(
+    (activeSinceAt: number) => {
+      if (running) return
+      if (!autoPaused && !(config.autoStart && phase === 'idle')) return
+      setAutoPaused(false)
+      restartWork() // ya has descansado: intervalo de trabajo desde cero
+      startSession(activeSinceAt)
+    },
+    [running, autoPaused, config.autoStart, phase, restartWork, startSession],
+  )
+
+  // Sigue vigilando con el timer pausado por inactividad, para poder reanudar.
+  // En el descanso no vigila: levantarse es justo el plan.
+  useActivityMonitor(
+    config.idleDetection &&
+      phase !== 'break' &&
+      (running || autoPaused || (config.autoStart && phase === 'idle')),
     config.idleThreshold,
     handleIdle,
+    handleActive,
+    epoch,
   )
 
   // Aviso único al alcanzar la meta diaria.
@@ -101,6 +125,11 @@ export default function App() {
     }
   }, [todayMs, goalMs, config])
 
+  const resetMonitor = () => {
+    setAutoPaused(false)
+    setEpoch((e) => e + 1)
+  }
+
   const handleStart = () => {
     unlockAudio() // desbloquea el audio en el gesto del usuario
     // Pide permiso de notificaciones aquí (gesto del usuario) por si está
@@ -113,23 +142,25 @@ export default function App() {
         if (!granted) setConfig((c) => ({ ...c, idleDetection: false }))
       })
     }
-    setIdleNotice(false)
+    resetMonitor()
     start()
     startSession()
   }
 
   const handlePause = () => {
+    resetMonitor()
     pause()
     endSession()
   }
 
   const handleResume = () => {
-    setIdleNotice(false)
+    resetMonitor()
     resume()
     startSession()
   }
 
   const handleReset = () => {
+    resetMonitor()
     reset()
     endSession()
   }
@@ -157,9 +188,13 @@ export default function App() {
           {phase !== 'idle' && <SecondaryButton onClick={handleReset}>Reiniciar</SecondaryButton>}
         </div>
 
-        {idleNotice && (
+        {autoPaused && (
           <p className="rounded-lg bg-amber-500/15 px-4 py-2 text-sm text-amber-300">
-            Pausado por inactividad. No se descontó tiempo.
+            Pausado por inactividad.{' '}
+            {config.discountIdleTime
+              ? 'El tiempo ausente no se contó.'
+              : 'No se descontó tiempo.'}{' '}
+            Se reanuda solo al volver.
           </p>
         )}
 

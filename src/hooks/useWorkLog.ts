@@ -3,6 +3,8 @@ import type { WorkSession } from '../types'
 
 const STORAGE_KEY = 'levantimer.worklog'
 const HISTORY_DAYS = 30
+// Cada cuánto se refresca `lastSeen` de la sesión en curso.
+const HEARTBEAT_MS = 60_000
 // Sesiones más cortas que esto se descartan (ruido de pausas inmediatas).
 const MIN_SESSION_MS = 1000
 
@@ -10,7 +12,7 @@ interface WorkLogData {
   /** Sesiones cerradas, agrupadas por fecha local "YYYY-MM-DD". */
   days: Record<string, WorkSession[]>
   /**
-   * Sesión en curso. `lastSeen` se refresca cada segundo para poder cerrar la
+   * Sesión en curso. `lastSeen` se refresca cada minuto para poder cerrar la
    * sesión de forma honesta si la pestaña se cierra con el timer corriendo.
    */
   active: { start: number; lastSeen: number } | null
@@ -72,7 +74,7 @@ export function useWorkLog() {
 
   const isActive = data.active !== null
 
-  // Tick de 1s con sesión activa: mantiene el total de hoy en vivo y refresca
+  // Latido con sesión activa: mantiene el total de hoy en vivo y refresca
   // lastSeen para el cierre de sesiones huérfanas.
   useEffect(() => {
     if (!isActive) return
@@ -80,23 +82,24 @@ export function useWorkLog() {
       setData((d) =>
         d.active ? { ...d, active: { ...d.active, lastSeen: Date.now() } } : d,
       )
-    }, 1000)
+    }, HEARTBEAT_MS)
     return () => clearInterval(id)
   }, [isActive])
 
-  const startSession = useCallback(() => {
-    const now = Date.now()
-    setData((d) => (d.active ? d : { ...d, active: { start: now, lastSeen: now } }))
+  /** Abre una sesión. `start` permite fecharla en el instante real del regreso. */
+  const startSession = useCallback((start?: number) => {
+    const at = start ?? Date.now()
+    setData((d) => (d.active ? d : { ...d, active: { start: at, lastSeen: Date.now() } }))
   }, [])
 
-  /** Cierra la sesión activa en este momento. */
-  const endSession = useCallback(() => {
+  /** Cierra la sesión activa. `end` permite fecharla al empezar la inactividad. */
+  const endSession = useCallback((end?: number) => {
     setData((d) => {
       if (!d.active) return d
       const days = { ...d.days }
       pushSession(days, {
         start: d.active.start,
-        end: Math.max(d.active.start, Date.now()),
+        end: Math.max(d.active.start, end ?? Date.now()),
       })
       return { days, active: null }
     })

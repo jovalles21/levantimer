@@ -16,6 +16,7 @@ interface StandTimer {
   resume: () => void
   reset: () => void
   skipBreak: () => void
+  restartWork: () => void
 }
 
 /**
@@ -58,8 +59,10 @@ export function useStandTimer(config: Config): StandTimer {
     }
   }, [])
 
+  // `silent` omite la alerta: lo usan la reanudación y el arranque automáticos,
+  // que no son un cambio de fase que haya que anunciar.
   const enterPhase = useCallback(
-    (p: Phase) => {
+    (p: Phase, silent = false) => {
       const duration = durationFor(p)
       endTimeRef.current = Date.now() + duration
       pausedRemainingRef.current = null
@@ -67,7 +70,7 @@ export function useStandTimer(config: Config): StandTimer {
       phaseRef.current = p
       setPhase(p)
       setRemainingMs(duration)
-      alertFor(p)
+      if (!silent) alertFor(p)
     },
     [durationFor, alertFor],
   )
@@ -132,5 +135,11 @@ export function useStandTimer(config: Config): StandTimer {
     enterPhase('working')
   }, [enterPhase])
 
-  return { phase, running, remainingMs, start, pause, resume, reset, skipBreak }
+  /** Arranca un intervalo de trabajo desde cero, sin alerta. */
+  const restartWork = useCallback(() => {
+    enterPhase('working', true)
+    setRunning(true)
+  }, [enterPhase])
+
+  return { phase, running, remainingMs, start, pause, resume, reset, skipBreak, restartWork }
 }

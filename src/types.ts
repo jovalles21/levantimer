@@ -24,6 +24,10 @@ export interface Config {
   idleDetection: boolean
   /** Minutos sin actividad antes de auto-pausar. */
   idleThreshold: number
+  /** Si el tiempo de inactividad se resta del registro de la jornada. */
+  discountIdleTime: boolean
+  /** Si la jornada arranca sola al detectar actividad con el timer parado. */
+  autoStart: boolean
 }
 
 /** Tramo de jornada registrado (incluye trabajo y descansos del timer). */
@@ -43,4 +47,6 @@ export const DEFAULT_CONFIG: Config = {
   dailyGoalHours: 8,
   idleDetection: true,
   idleThreshold: 5,
+  discountIdleTime: true,
+  autoStart: false,
 }
